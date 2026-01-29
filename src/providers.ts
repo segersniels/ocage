@@ -248,111 +248,74 @@ async function fetchKimiUsage(token: string): Promise<ProviderUsage> {
   }
 }
 
-/**
- * Find codex binary path
- */
-function findCodexPath(): string | null {
-  // TEMP: Force CLI not found for testing Connect button
-  return null;
-
-  /*
-  const home = process.env.HOME || "";
-  const candidates = [
-    `${home}/.bun/bin/codex`,
-    `${home}/.local/bin/codex`,
-    "/opt/homebrew/bin/codex",
-    "/usr/local/bin/codex",
-  ];
-
-  for (const path of candidates) {
-    const check = Bun.spawnSync(["test", "-x", path]);
-    if (check.exitCode === 0) return path;
-  }
-
-  const which = Bun.spawnSync(["which", "codex"]);
-  if (which.exitCode === 0) {
-    return which.stdout.toString().trim();
-  }
-
-  return null;
-  */
+interface OpenAIUsageResponse {
+  plan_type?: string;
+  rate_limit?: {
+    allowed?: boolean;
+    primary_window?: {
+      used_percent: number;
+      limit_window_seconds: number;
+      reset_at: number;
+    };
+    secondary_window?: {
+      used_percent: number;
+      limit_window_seconds: number;
+      reset_at: number;
+    };
+  };
 }
 
 /**
- * Fetch OpenAI/Codex usage via CLI RPC
+ * Fetch OpenAI usage via OAuth API
  */
-async function fetchCodexUsage(): Promise<ProviderUsage> {
+async function fetchOpenAIUsage(
+  token: string,
+  accountId?: string
+): Promise<ProviderUsage> {
   try {
-    const codexPath = findCodexPath();
-    if (!codexPath) {
-      return {
-        provider: "openai",
-        authenticated: false,
-        error: "Install Codex CLI",
-        updatedAt: new Date(),
-      };
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+      "User-Agent": "ocage",
+    };
+
+    if (accountId) {
+      headers["ChatGPT-Account-Id"] = accountId;
     }
 
-    const rpcMessages = [
-      '{"id":1,"method":"initialize","params":{"clientInfo":{"name":"ocage","version":"0.1"}}}',
-      '{"method":"initialized"}',
-      '{"id":2,"method":"account/rateLimits/read"}',
-    ].join("\n");
+    const res = await fetch("https://chatgpt.com/backend-api/wham/usage", {
+      headers,
+    });
 
-    const proc = Bun.spawnSync(
-      [
-        "sh",
-        "-c",
-        `echo '${rpcMessages}' | "${codexPath}" -s read-only -a untrusted app-server 2>/dev/null | grep '"id":2'`,
-      ],
-      {
-        env: {
-          ...process.env,
-          PATH: (process.env.PATH || "") + ":/opt/homebrew/bin:/usr/local/bin",
-        },
+    if (!res.ok) {
+      if (res.status === 401 || res.status === 403) {
+        return {
+          provider: "openai",
+          authenticated: false,
+          error: "Token expired",
+          updatedAt: new Date(),
+        };
       }
-    );
-
-    const result = proc.stdout.toString();
-
-    if (!result.trim()) {
-      return {
-        provider: "openai",
-        authenticated: false,
-        error: "Run 'codex' to authenticate",
-        updatedAt: new Date(),
-      };
+      throw new Error(`HTTP ${res.status}`);
     }
 
-    const data = JSON.parse(result.trim());
-    const limits = data.result?.rateLimits;
-
-    if (!limits) {
-      return {
-        provider: "openai",
-        authenticated: false,
-        error: "Invalid response",
-        updatedAt: new Date(),
-      };
-    }
+    const data = (await res.json()) as OpenAIUsageResponse;
 
     return {
       provider: "openai",
       authenticated: true,
-      fiveHourLimit: limits.primary
+      fiveHourLimit: data.rate_limit?.primary_window
         ? {
-            usedPercent: limits.primary.usedPercent ?? 0,
-            resetsAt: limits.primary.resetsAt
-              ? new Date(limits.primary.resetsAt * 1000)
-              : undefined,
+            usedPercent: data.rate_limit.primary_window.used_percent ?? 0,
+            resetsAt: new Date(data.rate_limit.primary_window.reset_at * 1000),
           }
         : undefined,
-      weeklyLimit: limits.secondary
+      weeklyLimit: data.rate_limit?.secondary_window
         ? {
-            usedPercent: limits.secondary.usedPercent ?? 0,
-            resetsAt: limits.secondary.resetsAt
-              ? new Date(limits.secondary.resetsAt * 1000)
-              : undefined,
+            usedPercent: data.rate_limit.secondary_window.used_percent ?? 0,
+            resetsAt: new Date(
+              data.rate_limit.secondary_window.reset_at * 1000
+            ),
           }
         : undefined,
       updatedAt: new Date(),
@@ -360,7 +323,7 @@ async function fetchCodexUsage(): Promise<ProviderUsage> {
   } catch (err) {
     return {
       provider: "openai",
-      authenticated: false,
+      authenticated: true,
       error: err instanceof Error ? err.message : "Unknown error",
       updatedAt: new Date(),
     };
@@ -396,8 +359,18 @@ export async function fetchAllProviderUsage(): Promise<ProviderUsage[]> {
     });
   }
 
-  // OpenAI/Codex - requires CLI
-  results.push(await fetchCodexUsage());
+  // OpenAI
+  if (tokens.openai?.token) {
+    results.push(
+      await fetchOpenAIUsage(tokens.openai.token, tokens.openai.accountId)
+    );
+  } else {
+    results.push({
+      provider: "openai",
+      authenticated: false,
+      updatedAt: new Date(),
+    });
+  }
 
   return results;
 }

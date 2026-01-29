@@ -17,6 +17,7 @@ export interface ProviderToken {
   token: string;
   expires?: number;
   updatedAt: number;
+  accountId?: string;
 }
 
 export interface TokenStore {
@@ -37,6 +38,7 @@ interface OpenCodeAuth {
     access?: string;
     refresh?: string;
     expires?: number;
+    accountId?: string;
   };
   "kimi-for-coding"?: { type: string; key?: string };
 }
@@ -68,6 +70,7 @@ export function loadTokens(): TokenStore {
         token: openCodeAuth.openai.access,
         expires: openCodeAuth.openai.expires,
         updatedAt: Date.now(),
+        accountId: openCodeAuth.openai.accountId,
       };
     }
   } catch {
