@@ -2,12 +2,12 @@ import type { ProviderUsage, RateLimit } from "../providers";
 
 const PROVIDER_INFO: Record<string, { name: string; iconUrl: string }> = {
   anthropic: {
-    name: "Anthropic",
+    name: "Claude",
     iconUrl:
       "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/claude-ai.svg",
   },
   openai: {
-    name: "OpenAI",
+    name: "Codex",
     iconUrl:
       "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/openai.svg",
   },
@@ -63,7 +63,7 @@ function Header({
         alt=""
         className={`w-5 h-5 ${dimmed ? "opacity-40 grayscale" : ""}`}
       />
-      <span className="text-sm font-medium text-gray-900">{name}</span>
+      <span className="text-sm font-medium text-gray-900 logo">{name}</span>
     </div>
   );
 }
@@ -119,7 +119,9 @@ export function ProviderCard({ provider }: { provider: ProviderUsage }) {
             alt=""
             className="w-5 h-5 opacity-40 grayscale"
           />
-          <span className="text-sm font-medium text-gray-900">{info.name}</span>
+          <span className="text-sm font-medium text-gray-900 logo">
+            {info.name}
+          </span>
         </div>
 
         {/* Skeleton bars using exact same structure as UsageBar */}

@@ -3,8 +3,8 @@ import { useState } from "react";
 import { navigate } from "./ProviderCard";
 
 const PROVIDER_NAMES: Record<string, string> = {
-  anthropic: "Anthropic",
-  openai: "OpenAI",
+  anthropic: "Claude",
+  openai: "Codex",
   kimi: "Kimi",
 };
 
@@ -42,7 +42,7 @@ const INSTRUCTIONS: Record<
   },
   anthropic: {
     steps: [
-      "Anthropic is automatically connected via OpenCode OAuth",
+      "Claude is automatically connected via OpenCode OAuth",
       "If not working, re-authenticate in OpenCode",
     ],
     cookieName: "",
