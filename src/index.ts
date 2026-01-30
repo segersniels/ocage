@@ -79,7 +79,7 @@ async function main() {
   }
 
   // Refresh provider data periodically
-  setInterval(refreshProviders, 60_000);
+  setInterval(refreshProviders, 5_000);
 
   console.log("\nPress Ctrl+C to stop\n");
 }
