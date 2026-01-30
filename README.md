@@ -2,6 +2,10 @@
 
 A real-time dashboard for monitoring OpenCode usage limits across providers.
 
+<p align="center">
+  <img src="./.github/image.png" alt="ocage" />
+</p>
+
 ## Install
 
 ```bash
