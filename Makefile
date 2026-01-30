@@ -8,9 +8,9 @@ RELEASE_BINARIES = $(addprefix $(BINARY_NAME)-,$(PLATFORMS))
 .PHONY: build build-release install uninstall clean publish
 
 build:
-	bun build src/index.ts --compile --outfile $(BINARY_NAME)
+	bun build src/server/index.ts --compile --outfile $(BINARY_NAME)
 
-$(BINARY_NAME)-%: src/index.ts
+$(BINARY_NAME)-%: src/server/index.ts
 	bun build $< --compile --target=bun-$* --outfile $@
 
 build-release: $(RELEASE_BINARIES)
