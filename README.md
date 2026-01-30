@@ -33,7 +33,7 @@ You can also run ocage in Docker. The container needs access to your local confi
 ### docker run
 
 ```bash
-docker run -p 3333:3333 \
+docker run -d -p 3333:3333 \
   -v ~/.local/share/opencode:/home/ocage/.local/share/opencode:ro \
   -v ~/.codex:/home/ocage/.codex:ro \
   -v ~/.claude:/home/ocage/.claude:ro \
@@ -55,7 +55,7 @@ Mount the directories containing your provider credentials:
 Mount only the volumes for providers you use. For example, if you only use OpenCode and Claude Code:
 
 ```bash
-docker run -p 3333:3333 \
+docker run -d -p 3333:3333 \
   -v ~/.local/share/opencode:/home/ocage/.local/share/opencode:ro \
   -v ~/.claude:/home/ocage/.claude:ro \
   -v ~/.config/ocage:/home/ocage/.config/ocage \
