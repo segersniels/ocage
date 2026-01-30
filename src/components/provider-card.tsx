@@ -1,6 +1,6 @@
-import { getProviderMeta } from "../constants";
-import { navigate } from "../navigation";
-import type { ProviderUsage, RateLimit } from "../providers";
+import { getProviderMeta } from "../lib/constants";
+import { navigate } from "../lib/navigation";
+import type { ProviderUsage, RateLimit } from "../server/providers";
 import { Button } from "./button";
 
 function formatResetTime(date: Date): string {

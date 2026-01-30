@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
+import index from "../index.html";
 import { getConfig } from "./config";
-import index from "./index.html";
 import { fetchAllProviderUsage, type ProviderUsage } from "./providers";
 import { saveToken } from "./tokens";
 
@@ -70,7 +70,7 @@ async function main() {
   if (config.autoOpen) {
     try {
       // Warm up the bundle before opening browser (Bun compiles on-demand)
-      await fetch(new URL("/frontend.tsx", server.url));
+      await fetch(new URL("/index.tsx", server.url));
       const openCmd = process.platform === "darwin" ? "open" : "xdg-open";
       const proc = Bun.spawn([openCmd, server.url.href]);
       await proc.exited;

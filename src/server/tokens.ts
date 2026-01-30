@@ -4,11 +4,14 @@
  * - Stores additional tokens (browser cookies) in ~/.config/ocage/tokens.json
  */
 
+import { execSync } from "child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 
 const HOME = process.env.HOME || "";
 const OPENCODE_AUTH = join(HOME, ".local/share/opencode/auth.json");
+const CODEX_AUTH = join(HOME, ".codex/auth.json");
+const CLAUDE_AUTH = join(HOME, ".claude/.credentials.json");
 const OCAGE_CONFIG_DIR = join(HOME, ".config/ocage");
 const OCAGE_TOKENS = join(OCAGE_CONFIG_DIR, "tokens.json");
 
@@ -43,13 +46,33 @@ interface OpenCodeAuth {
   "kimi-for-coding"?: { type: string; key?: string };
 }
 
+interface CodexAuth {
+  tokens?: {
+    access_token?: string;
+    id_token?: string;
+    refresh_token?: string;
+    account_id?: string;
+  };
+  last_refresh?: string;
+}
+
+interface ClaudeAuth {
+  claudeAiOauth?: {
+    accessToken?: string;
+    refreshToken?: string;
+    expiresAt?: number;
+    scopes?: string[];
+  };
+}
+
 /**
- * Load tokens from both OpenCode auth.json and our own token store
+ * Load tokens from all sources: OpenCode, Codex, Claude Code, and our own store
+ * Priority: OpenCode > Codex/Claude > manual tokens
  */
 export function loadTokens(): TokenStore {
   const store: TokenStore = {};
 
-  // Load from OpenCode auth.json
+  // Load from OpenCode auth.json (primary source)
   try {
     const openCodeAuth: OpenCodeAuth = JSON.parse(
       readFileSync(OPENCODE_AUTH, "utf-8")
@@ -77,21 +100,51 @@ export function loadTokens(): TokenStore {
     // OpenCode auth not available
   }
 
-  // Load our own tokens (browser cookies, manual tokens)
+  // Load from Codex CLI (~/.codex/auth.json) as fallback for OpenAI
+  if (!store.openai) {
+    try {
+      const codexAuth: CodexAuth = JSON.parse(
+        readFileSync(CODEX_AUTH, "utf-8")
+      );
+      if (codexAuth.tokens?.access_token) {
+        store.openai = {
+          type: "oauth",
+          token: codexAuth.tokens.access_token,
+          updatedAt: Date.now(),
+          accountId: codexAuth.tokens.account_id,
+        };
+      }
+    } catch {
+      // Codex auth not available
+    }
+  }
+
+  // Load from Claude Code (~/.claude/.credentials.json) as fallback for Anthropic
+  if (!store.anthropic) {
+    try {
+      const claudeAuth: ClaudeAuth = JSON.parse(
+        readFileSync(CLAUDE_AUTH, "utf-8")
+      );
+      if (claudeAuth.claudeAiOauth?.accessToken) {
+        store.anthropic = {
+          type: "oauth",
+          token: claudeAuth.claudeAiOauth.accessToken,
+          expires: claudeAuth.claudeAiOauth.expiresAt,
+          updatedAt: Date.now(),
+        };
+      }
+    } catch {
+      // Claude Code auth not available
+    }
+  }
+
+  // Load our own tokens (browser cookies for Kimi)
   try {
     const ocageTokens = JSON.parse(readFileSync(OCAGE_TOKENS, "utf-8"));
 
     // Kimi cookie token (from browser)
     if (ocageTokens.kimi?.token) {
       store.kimi = ocageTokens.kimi;
-    }
-
-    // Allow overriding OpenCode tokens if needed
-    if (ocageTokens.anthropic?.token) {
-      store.anthropic = ocageTokens.anthropic;
-    }
-    if (ocageTokens.openai?.token) {
-      store.openai = ocageTokens.openai;
     }
   } catch {
     // Ocage tokens not available yet
@@ -157,4 +210,16 @@ export function getAuthStatus(): Record<
       type: tokens.kimi?.type,
     },
   };
+}
+
+/**
+ * Check if kimi CLI binary exists in PATH
+ */
+export function isKimiInstalled(): boolean {
+  try {
+    execSync("which kimi", { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
 }

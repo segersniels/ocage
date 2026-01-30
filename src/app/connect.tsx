@@ -1,9 +1,9 @@
 import type { FormEvent, ReactNode } from "react";
 import { useState } from "react";
 
-import { getProviderMeta } from "../constants";
-import { navigate } from "../navigation";
-import { Button } from "./button";
+import { Button } from "../components/button";
+import { getProviderMeta } from "../lib/constants";
+import { navigate } from "../lib/navigation";
 
 const INSTRUCTIONS: Record<
   string,
@@ -18,31 +18,6 @@ const INSTRUCTIONS: Record<
       "Copy its value and paste below",
     ],
     cookieName: "kimi-auth",
-  },
-  openai: {
-    steps: [
-      <>
-        Install the Codex CLI:{" "}
-        <a
-          href="https://developers.openai.com/codex/cli"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-blue-600 hover:text-blue-800 underline"
-        >
-          developers.openai.com/codex/cli
-        </a>
-      </>,
-      "Run: codex and complete authentication",
-      "Refresh this page",
-    ],
-    cookieName: "",
-  },
-  anthropic: {
-    steps: [
-      "Claude is automatically connected via OpenCode OAuth",
-      "If not working, re-authenticate in OpenCode",
-    ],
-    cookieName: "",
   },
 };
 

@@ -4,9 +4,9 @@
   "description": "Token usage monitor for OpenCode with real-time dashboard",
   "type": "module",
   "scripts": {
-    "dev": "bun --watch src/index.ts",
-    "build": "bun build src/index.ts --target=bun --production --outdir=dist",
-    "start": "bun src/index.ts",
+    "dev": "bun --watch src/server/index.ts",
+    "build": "bun build src/server/index.ts --target=bun --production --outdir=dist",
+    "start": "bun src/server/index.ts",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
     "typecheck": "tsc --noEmit"

@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 
-import { getPathSegments } from "../navigation";
-import type { ProviderUsage } from "../providers";
-import { ConnectPage } from "./connect-page";
+import { getPathSegments } from "../lib/navigation";
+import type { ProviderUsage } from "../server/providers";
+import { ConnectPage } from "./connect";
 import { Dashboard } from "./dashboard";
 
 export function App() {

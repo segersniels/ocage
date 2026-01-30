@@ -3,7 +3,7 @@
  * Fetches rate limit usage from provider APIs
  */
 
-import { loadTokens } from "./tokens";
+import { isKimiInstalled, loadTokens } from "./tokens";
 
 interface AnthropicUsageWindow {
   utilization?: number;
@@ -332,22 +332,23 @@ async function fetchOpenAIUsage(
 
 /**
  * Fetch usage for all configured providers
+ * Only returns providers that have tokens (auto-detected) or could have tokens (Kimi with CLI installed)
  */
 export async function fetchAllProviderUsage(): Promise<ProviderUsage[]> {
   const tokens = loadTokens();
   const results: ProviderUsage[] = [];
 
-  // Anthropic
+  // Anthropic - only if token exists (auto-detected from OpenCode or Claude Code)
   if (tokens.anthropic?.token) {
     results.push(await fetchAnthropicUsage(tokens.anthropic.token));
   }
 
-  // Kimi
-  if (tokens.kimi?.token) {
-    results.push(await fetchKimiUsage(tokens.kimi.token));
+  // Kimi - include if token exists OR kimi CLI is installed (for manual cookie entry)
+  if (tokens.kimi?.token || isKimiInstalled()) {
+    results.push(await fetchKimiUsage(tokens.kimi?.token || ""));
   }
 
-  // OpenAI
+  // OpenAI - only if token exists (auto-detected from OpenCode or Codex)
   if (tokens.openai?.token) {
     results.push(
       await fetchOpenAIUsage(tokens.openai.token, tokens.openai.accountId)
