@@ -1,12 +1,9 @@
 import { useEffect, useState } from "react";
 
+import { getPathSegments } from "../navigation";
 import type { ProviderUsage } from "../providers";
-import { ConnectPage } from "./ConnectPage";
-import { Dashboard } from "./Dashboard";
-
-function getPathSegments(): string[] {
-  return window.location.pathname.split("/").filter(Boolean);
-}
+import { ConnectPage } from "./connect-page";
+import { Dashboard } from "./dashboard";
 
 export function App() {
   const [providers, setProviders] = useState<ProviderUsage[] | null>(null);

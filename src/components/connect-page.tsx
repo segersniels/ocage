@@ -1,16 +1,13 @@
+import type { FormEvent, ReactNode } from "react";
 import { useState } from "react";
 
-import { navigate } from "./ProviderCard";
-
-const PROVIDER_NAMES: Record<string, string> = {
-  anthropic: "Claude",
-  openai: "Codex",
-  kimi: "Kimi",
-};
+import { getProviderMeta } from "../constants";
+import { navigate } from "../navigation";
+import { Button } from "./button";
 
 const INSTRUCTIONS: Record<
   string,
-  { steps: (string | React.ReactNode)[]; cookieName: string }
+  { steps: (string | ReactNode)[]; cookieName: string }
 > = {
   kimi: {
     steps: [
@@ -55,13 +52,13 @@ export function ConnectPage({ provider }: { provider: string }) {
   const [token, setToken] = useState("");
   const [status, setStatus] = useState<Status | null>(null);
 
-  const name = PROVIDER_NAMES[provider] || provider;
+  const { name } = getProviderMeta(provider);
   const info = INSTRUCTIONS[provider] || {
     steps: ["Unknown provider"],
     cookieName: "",
   };
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
 
     if (!token.trim()) {
@@ -104,13 +101,14 @@ export function ConnectPage({ provider }: { provider: string }) {
 
   return (
     <div className="max-w-lg mx-auto px-6 py-12">
-      <button
-        type="button"
+      <Button
+        variant="ghost"
+        size="md"
         onClick={() => navigate("/")}
-        className="text-sm text-gray-500 hover:text-gray-700 mb-6 inline-block"
+        className="mb-6"
       >
         &larr; Back to dashboard
-      </button>
+      </Button>
 
       <h1 className="text-xl font-semibold mb-2">Connect {name}</h1>
       <p className="text-sm text-gray-500 mb-6">
@@ -141,12 +139,9 @@ export function ConnectPage({ provider }: { provider: string }) {
             className="w-full border border-gray-200 rounded-lg p-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-gray-900"
             placeholder={`Paste your ${info.cookieName} cookie value here...`}
           />
-          <button
-            type="submit"
-            className="mt-3 w-full py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800"
-          >
+          <Button type="submit" className="mt-3 w-full">
             Connect {name}
-          </button>
+          </Button>
           {status && (
             <p className={`mt-2 text-sm ${statusColor}`}>{status.message}</p>
           )}

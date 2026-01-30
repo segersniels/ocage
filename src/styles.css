@@ -1,0 +1,6 @@
+@import "tailwindcss";
+
+.logo {
+  font-family: "Space Grotesk", sans-serif;
+  letter-spacing: -0.02em;
+}

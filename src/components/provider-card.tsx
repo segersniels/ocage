@@ -1,22 +1,7 @@
+import { getProviderMeta } from "../constants";
+import { navigate } from "../navigation";
 import type { ProviderUsage, RateLimit } from "../providers";
-
-const PROVIDER_INFO: Record<string, { name: string; iconUrl: string }> = {
-  anthropic: {
-    name: "Claude",
-    iconUrl:
-      "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/claude-ai.svg",
-  },
-  openai: {
-    name: "Codex",
-    iconUrl:
-      "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/openai.svg",
-  },
-  kimi: {
-    name: "Kimi",
-    iconUrl:
-      "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/kimi-ai.svg",
-  },
-};
+import { Button } from "./button";
 
 function formatResetTime(date: Date): string {
   const now = new Date();
@@ -42,11 +27,6 @@ function formatResetTime(date: Date): string {
   return `in ${minutes}m`;
 }
 
-export function navigate(path: string) {
-  window.history.pushState({}, "", path);
-  window.dispatchEvent(new PopStateEvent("popstate"));
-}
-
 function Header({
   name,
   iconUrl,
@@ -68,7 +48,32 @@ function Header({
   );
 }
 
-function UsageBar({ label, limit }: { label: string; limit: RateLimit }) {
+function UsageBar({
+  label,
+  limit,
+  skeleton,
+}: {
+  label: string;
+  limit?: RateLimit;
+  skeleton?: boolean;
+}) {
+  if (skeleton || !limit) {
+    return (
+      <div>
+        <div className="flex justify-between items-baseline mb-2">
+          <span className="text-xs text-gray-300 uppercase tracking-wide">
+            {label}
+          </span>
+          <span className="text-sm font-medium tabular-nums text-gray-300">
+            --
+          </span>
+        </div>
+        <div className="h-0.5 bg-gray-200" />
+        <div className="text-xs text-gray-200 mt-1.5">in --</div>
+      </div>
+    );
+  }
+
   const remaining = Math.max(0, 100 - limit.usedPercent);
 
   return (
@@ -97,62 +102,23 @@ function UsageBar({ label, limit }: { label: string; limit: RateLimit }) {
 }
 
 export function ProviderCard({ provider }: { provider: ProviderUsage }) {
-  const info = PROVIDER_INFO[provider.provider] || {
-    name: provider.provider,
-    iconUrl:
-      "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/question.svg",
-  };
+  const info = getProviderMeta(provider.provider);
 
   if (!provider.authenticated) {
     return (
       <div className="w-64 py-6 relative">
-        <button
-          type="button"
+        <Button
+          variant="outline"
+          size="sm"
           onClick={() => navigate(`/connect/${provider.provider}`)}
-          className="absolute top-5 right-0 inline-flex items-center justify-center rounded-md text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-400 disabled:pointer-events-none disabled:opacity-50 border border-gray-200 bg-transparent hover:bg-gray-100 text-gray-600 h-7 px-2.5"
+          className="absolute top-5 right-0"
         >
           Connect
-        </button>
-        <div className="flex items-center gap-3 mb-6">
-          <img
-            src={info.iconUrl}
-            alt=""
-            className="w-5 h-5 opacity-40 grayscale"
-          />
-          <span className="text-sm font-medium text-gray-900 logo">
-            {info.name}
-          </span>
-        </div>
-
-        {/* Skeleton bars using exact same structure as UsageBar */}
+        </Button>
+        <Header name={info.name} iconUrl={info.iconUrl} dimmed />
         <div className="space-y-5">
-          {/* 5H skeleton */}
-          <div>
-            <div className="flex justify-between items-baseline mb-2">
-              <span className="text-xs text-gray-300 uppercase tracking-wide">
-                5H
-              </span>
-              <span className="text-sm font-medium tabular-nums text-gray-300">
-                --
-              </span>
-            </div>
-            <div className="h-0.5 bg-gray-200" />
-            <div className="text-xs text-gray-200 mt-1.5">in --</div>
-          </div>
-
-          {/* WEEK skeleton */}
-          <div>
-            <div className="flex justify-between items-baseline mb-2">
-              <span className="text-xs text-gray-300 uppercase tracking-wide">
-                WEEK
-              </span>
-              <span className="text-sm font-medium tabular-nums text-gray-300">
-                --
-              </span>
-            </div>
-            <div className="h-0.5 bg-gray-200" />
-            <div className="text-xs text-gray-200 mt-1.5">in --</div>
-          </div>
+          <UsageBar label="5H" skeleton />
+          <UsageBar label="WEEK" skeleton />
         </div>
       </div>
     );

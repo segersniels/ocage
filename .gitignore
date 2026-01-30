@@ -3,3 +3,4 @@ bun.lockb
 ocage
 *.log
 .DS_Store
+dist/

@@ -1,5 +1,5 @@
 import type { ProviderUsage } from "../providers";
-import { ProviderCard } from "./ProviderCard";
+import { ProviderCard } from "./provider-card";
 
 export function Dashboard({ providers }: { providers: ProviderUsage[] }) {
   return (
