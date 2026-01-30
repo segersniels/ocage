@@ -340,23 +340,11 @@ export async function fetchAllProviderUsage(): Promise<ProviderUsage[]> {
   // Anthropic
   if (tokens.anthropic?.token) {
     results.push(await fetchAnthropicUsage(tokens.anthropic.token));
-  } else {
-    results.push({
-      provider: "anthropic",
-      authenticated: false,
-      updatedAt: new Date(),
-    });
   }
 
   // Kimi
   if (tokens.kimi?.token) {
     results.push(await fetchKimiUsage(tokens.kimi.token));
-  } else {
-    results.push({
-      provider: "kimi",
-      authenticated: false,
-      updatedAt: new Date(),
-    });
   }
 
   // OpenAI
@@ -364,12 +352,6 @@ export async function fetchAllProviderUsage(): Promise<ProviderUsage[]> {
     results.push(
       await fetchOpenAIUsage(tokens.openai.token, tokens.openai.accountId)
     );
-  } else {
-    results.push({
-      provider: "openai",
-      authenticated: false,
-      updatedAt: new Date(),
-    });
   }
 
   return results;
