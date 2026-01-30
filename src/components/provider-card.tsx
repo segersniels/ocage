@@ -92,11 +92,9 @@ function UsageBar({
           style={{ width: `${remaining}%` }}
         />
       </div>
-      {limit.resetsAt && (
-        <div className="text-xs text-gray-300 mt-1.5">
-          {formatResetTime(limit.resetsAt)}
-        </div>
-      )}
+      <div className="text-xs text-gray-300 mt-1.5">
+        {limit.resetsAt ? formatResetTime(limit.resetsAt) : "--"}
+      </div>
     </div>
   );
 }
