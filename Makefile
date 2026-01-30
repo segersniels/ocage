@@ -5,7 +5,7 @@ VERSION ?= $(shell date +%Y%m%d%H%M%S)
 PLATFORMS = darwin-arm64 linux-arm64 linux-x64
 RELEASE_BINARIES = $(addprefix $(BINARY_NAME)-,$(PLATFORMS))
 
-DOCKER_USER ?= $(shell git config --get remote.origin.url | sed 's/.*github\.com[:/]\([^/]*\)\/.*/\1/')
+DOCKER_USER ?= segersniels
 DOCKER_IMAGE=$(DOCKER_USER)/ocage:latest
 
 .PHONY: build build-release install uninstall clean publish css release docker-build docker-publish docker-run
