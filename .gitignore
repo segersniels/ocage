@@ -1,6 +1,8 @@
 node_modules/
 bun.lockb
 ocage
+ocage-*
 *.log
 .DS_Store
 dist/
+src/styles.built.css

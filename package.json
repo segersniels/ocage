@@ -4,7 +4,9 @@
   "description": "Token usage monitor for OpenCode with real-time dashboard",
   "type": "module",
   "scripts": {
-    "dev": "bun --watch src/server/index.ts",
+    "css": "bunx @tailwindcss/cli -i src/styles.css -o src/styles.built.css",
+    "css:watch": "bunx @tailwindcss/cli -i src/styles.css -o src/styles.built.css --watch",
+    "dev": "bun run css && bun --watch src/server/index.ts",
     "build": "bun build src/server/index.ts --target=bun --production --outdir=dist",
     "start": "bun src/server/index.ts",
     "lint": "eslint src/",

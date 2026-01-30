@@ -5,12 +5,16 @@ VERSION ?= $(shell date +%Y%m%d%H%M%S)
 PLATFORMS = darwin-arm64 linux-arm64 linux-x64
 RELEASE_BINARIES = $(addprefix $(BINARY_NAME)-,$(PLATFORMS))
 
-.PHONY: build build-release install uninstall clean publish
+.PHONY: build build-release install uninstall clean publish css
 
-build:
+# Build CSS with Tailwind CLI (required for --compile, plugin only works at runtime)
+css:
+	bunx @tailwindcss/cli -i src/styles.css -o src/styles.built.css
+
+build: css
 	bun build src/server/index.ts --compile --outfile $(BINARY_NAME)
 
-$(BINARY_NAME)-%: src/server/index.ts
+$(BINARY_NAME)-%: src/server/index.ts css
 	bun build $< --compile --target=bun-$* --outfile $@
 
 build-release: $(RELEASE_BINARIES)
