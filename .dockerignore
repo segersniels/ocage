@@ -1,0 +1,36 @@
+# Git
+.git
+.gitignore
+
+# GitHub
+.github
+
+# Dependencies
+node_modules/
+
+# Build outputs
+ocage
+ocage-*
+dist/
+src/styles.built.css
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+
+# Dev tools/config (not needed in container)
+eslint.config.js
+.prettierrc
+tsconfig.json
+bunfig.toml
+
+# Scripts/docs not needed in container
+install.sh
+README.md
+
+# Docker files themselves (optional, but keeps context clean)
+Dockerfile
+docker-compose.yml
+.dockerignore

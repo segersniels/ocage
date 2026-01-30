@@ -1,0 +1,14 @@
+services:
+  ocage:
+    image: segersniels/ocage:latest
+    ports:
+      - "3333:3333"
+    environment:
+      - NODE_ENV=production
+      - NO_OPEN=1
+    volumes:
+      - ~/.local/share/opencode:/home/ocage/.local/share/opencode:ro
+      - ~/.codex:/home/ocage/.codex:ro
+      - ~/.claude:/home/ocage/.claude:ro
+      - ~/.config/ocage:/home/ocage/.config/ocage
+    restart: unless-stopped
