@@ -5,7 +5,6 @@ services:
       - "3333:3333"
     environment:
       - NODE_ENV=production
-      - NO_OPEN=1
     volumes:
       - ~/.local/share/opencode:/home/ocage/.local/share/opencode:ro
       - ~/.codex:/home/ocage/.codex:ro

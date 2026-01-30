@@ -23,7 +23,52 @@ cd ocage
 bun install
 make install
 ```
+
 </details>
+
+## Docker
+
+You can also run ocage in Docker. The container needs access to your local config directories to read provider credentials.
+
+### docker run
+
+```bash
+docker run -p 3333:3333 \
+  -v ~/.local/share/opencode:/home/ocage/.local/share/opencode:ro \
+  -v ~/.codex:/home/ocage/.codex:ro \
+  -v ~/.claude:/home/ocage/.claude:ro \
+  -v ~/.config/ocage:/home/ocage/.config/ocage \
+  segersniels/ocage:latest
+```
+
+### Volumes
+
+Mount the directories containing your provider credentials:
+
+| Volume                    | Description                                                                  |
+| ------------------------- | ---------------------------------------------------------------------------- |
+| `~/.local/share/opencode` | OpenCode credentials                                                         |
+| `~/.codex`                | Codex credentials                                                            |
+| `~/.claude`               | Claude Code credentials                                                      |
+| `~/.config/ocage`         | ocage token store (for Kimi browser cookies and tokens added through the UI) |
+
+Mount only the volumes for providers you use. For example, if you only use OpenCode and Claude Code:
+
+```bash
+docker run -p 3333:3333 \
+  -v ~/.local/share/opencode:/home/ocage/.local/share/opencode:ro \
+  -v ~/.claude:/home/ocage/.claude:ro \
+  -v ~/.config/ocage:/home/ocage/.config/ocage \
+  segersniels/ocage:latest
+```
+
+### docker-compose
+
+Alternatively, use the provided [`docker-compose.yml`](./docker-compose.yml):
+
+```bash
+docker-compose up -d
+```
 
 ## License
 

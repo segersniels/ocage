@@ -43,7 +43,6 @@ docker-run: docker-build
 		-v ~/.codex:/home/ocage/.codex:ro \
 		-v ~/.claude:/home/ocage/.claude:ro \
 		-v ~/.config/ocage:/home/ocage/.config/ocage \
-		-e NO_OPEN=1 \
 		$(DOCKER_IMAGE)
 
 release: build-release
