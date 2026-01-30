@@ -71,7 +71,8 @@ async function main() {
     try {
       // Warm up the bundle before opening browser (Bun compiles on-demand)
       await fetch(new URL("/frontend.tsx", server.url));
-      const proc = Bun.spawn(["open", server.url.href]);
+      const openCmd = process.platform === "darwin" ? "open" : "xdg-open";
+      const proc = Bun.spawn([openCmd, server.url.href]);
       await proc.exited;
     } catch {
       // Silent fail
