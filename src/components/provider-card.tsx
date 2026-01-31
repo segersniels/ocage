@@ -2,6 +2,7 @@ import { getProviderMeta } from "../lib/constants";
 import { navigate } from "../lib/navigation";
 import type { ProviderUsage, RateLimit } from "../server/providers";
 import { Button } from "./button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip";
 
 function formatResetTime(date: Date): string {
   const now = new Date();
@@ -105,14 +106,26 @@ export function ProviderCard({ provider }: { provider: ProviderUsage }) {
   if (!provider.authenticated) {
     return (
       <div className="w-64 py-6 relative">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => navigate(`/connect/${provider.provider}`)}
-          className="absolute top-5 right-0"
-        >
-          Connect
-        </Button>
+        {info.hasManualConnect ? (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate(`/connect/${provider.provider}`)}
+            className="absolute top-5 right-0"
+          >
+            Connect
+          </Button>
+        ) : (
+          <div className="absolute top-5 right-0">
+            <Tooltip>
+              <TooltipTrigger>?</TooltipTrigger>
+              <TooltipContent>
+                Token expired. Use this model in your editor to refresh
+                authentication.
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        )}
         <Header name={info.name} iconUrl={info.iconUrl} dimmed />
         <div className="space-y-5">
           <UsageBar label="5H" skeleton />
@@ -124,19 +137,36 @@ export function ProviderCard({ provider }: { provider: ProviderUsage }) {
 
   if (provider.error) {
     return (
-      <button
-        type="button"
-        onClick={() => navigate(`/connect/${provider.provider}`)}
-        className="group block w-64 py-6 transition-colors hover:bg-gray-50/50 text-left"
-      >
+      <div className="w-64 py-6 relative">
+        {!info.hasManualConnect && (
+          <div className="absolute top-5 right-0">
+            <Tooltip>
+              <TooltipTrigger>?</TooltipTrigger>
+              <TooltipContent>
+                Token expired. Use this model in your editor to refresh
+                authentication.
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        )}
         <Header name={info.name} iconUrl={info.iconUrl} dimmed />
         <div className="space-y-1">
           <span className="text-xs text-red-400 block">{provider.error}</span>
-          <span className="text-xs text-gray-400 group-hover:text-gray-600">
-            Click to reconnect
-          </span>
+          {info.hasManualConnect ? (
+            <button
+              type="button"
+              onClick={() => navigate(`/connect/${provider.provider}`)}
+              className="text-xs text-gray-400 hover:text-gray-600"
+            >
+              Click to reconnect
+            </button>
+          ) : (
+            <span className="text-xs text-gray-300">
+              Use the model in your editor to refresh
+            </span>
+          )}
         </div>
-      </button>
+      </div>
     );
   }
 
