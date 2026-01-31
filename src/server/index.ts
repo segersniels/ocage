@@ -3,7 +3,7 @@
 import index from "../index.html";
 import { getConfig } from "./config";
 import { fetchAllProviderUsage, type ProviderUsage } from "./providers";
-import { saveToken } from "./tokens";
+import { logAuthSources, saveToken } from "./tokens";
 
 const config = getConfig();
 
@@ -11,9 +11,21 @@ let cachedProviders: ProviderUsage[] = [];
 
 async function refreshProviders() {
   cachedProviders = await fetchAllProviderUsage();
+
+  // Log any errors
+  for (const provider of cachedProviders) {
+    if (provider.error) {
+      console.error(`[server] ${provider.provider}: ${provider.error}`);
+    } else if (!provider.authenticated) {
+      console.warn(`[server] ${provider.provider}: not authenticated`);
+    }
+  }
 }
 
 async function main() {
+  // Log detected auth sources once at startup
+  logAuthSources();
+
   await refreshProviders();
 
   const server = Bun.serve({
@@ -48,6 +60,7 @@ async function main() {
               token: body.token,
               updatedAt: Date.now(),
             });
+            console.log(`[server] Saved token for ${body.provider}`);
 
             await refreshProviders();
 

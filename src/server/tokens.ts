@@ -66,6 +66,24 @@ interface ClaudeAuth {
 }
 
 /**
+ * Log which auth sources are available on the filesystem (one-time startup log)
+ */
+export function logAuthSources(): void {
+  const sources: string[] = [];
+
+  if (existsSync(OPENCODE_AUTH)) sources.push("OpenCode");
+  if (existsSync(CODEX_AUTH)) sources.push("Codex");
+  if (existsSync(CLAUDE_AUTH)) sources.push("Claude Code");
+  if (existsSync(OCAGE_TOKENS)) sources.push("ocage tokens");
+
+  if (sources.length > 0) {
+    console.log(`[tokens] Detected auth sources: ${sources.join(", ")}`);
+  } else {
+    console.log("[tokens] No auth sources detected");
+  }
+}
+
+/**
  * Load tokens from all sources: OpenCode, Codex, Claude Code, and our own store
  * Priority: OpenCode > Codex/Claude > manual tokens
  */

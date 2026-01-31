@@ -101,10 +101,12 @@ async function fetchAnthropicUsage(token: string): Promise<ProviderUsage> {
       updatedAt: new Date(),
     };
   } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    console.error(`[providers] Anthropic fetch failed: ${message}`);
     return {
       provider: "anthropic",
       authenticated: true,
-      error: err instanceof Error ? err.message : "Unknown error",
+      error: message,
       updatedAt: new Date(),
     };
   }
@@ -227,6 +229,7 @@ async function fetchKimiUsage(token: string): Promise<ProviderUsage> {
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
+    console.error(`[providers] Kimi fetch failed: ${message}`);
     if (
       message.includes("unauthenticated") ||
       message.includes("INVALID_AUTH")
@@ -321,10 +324,12 @@ async function fetchOpenAIUsage(
       updatedAt: new Date(),
     };
   } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    console.error(`[providers] OpenAI fetch failed: ${message}`);
     return {
       provider: "openai",
       authenticated: true,
-      error: err instanceof Error ? err.message : "Unknown error",
+      error: message,
       updatedAt: new Date(),
     };
   }
