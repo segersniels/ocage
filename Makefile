@@ -8,7 +8,7 @@ RELEASE_BINARIES = $(addprefix $(BINARY_NAME)-,$(PLATFORMS))
 DOCKER_USER ?= segersniels
 DOCKER_IMAGE=$(DOCKER_USER)/ocage:latest
 
-.PHONY: build build-release install uninstall clean publish css release docker-build docker-publish docker-run
+.PHONY: build build-release install uninstall clean publish css create-github-release create-docker-release docker-run
 
 # Build CSS with Tailwind CLI (required for --compile, plugin only works at runtime)
 css:
@@ -40,6 +40,7 @@ create-github-release: build-release
 	rm -f $(RELEASE_BINARIES)
 
 create-docker-release:
+	docker buildx create --name ocage-builder --use 2>/dev/null || docker buildx use ocage-builder
 	docker buildx build --platform linux/amd64,linux/arm64 -t $(DOCKER_IMAGE) --push .
 
 docker-run:
