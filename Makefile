@@ -31,21 +31,7 @@ uninstall:
 clean:
 	rm -f $(BINARY_NAME) $(RELEASE_BINARIES)
 
-docker-build:
-	docker build -t $(DOCKER_IMAGE) .
-
-docker-publish: docker-build
-	docker push $(DOCKER_IMAGE)
-
-docker-run: docker-build
-	docker run -p 3333:3333 \
-		-v ~/.local/share/opencode:/home/ocage/.local/share/opencode:ro \
-		-v ~/.codex:/home/ocage/.codex:ro \
-		-v ~/.claude:/home/ocage/.claude:ro \
-		-v ~/.config/ocage:/home/ocage/.config/ocage \
-		$(DOCKER_IMAGE)
-
-release: build-release
+create-github-release: build-release
 	$(eval PREV_SHA := $(shell gh release view latest --json targetCommitish -q '.targetCommitish' 2>/dev/null))
 	-gh release delete latest --yes 2>/dev/null
 	gh release create latest --target "$$(git rev-parse HEAD)" --title "Latest" \
@@ -53,4 +39,16 @@ release: build-release
 		$(RELEASE_BINARIES)
 	rm -f $(RELEASE_BINARIES)
 
-publish: release docker-publish
+create-docker-release:
+	docker buildx build --platform linux/amd64,linux/arm64 -t $(DOCKER_IMAGE) --push .
+
+docker-run:
+	docker build -t $(DOCKER_IMAGE) . && \
+	docker run -p 3333:3333 \
+		-v ~/.local/share/opencode:/home/ocage/.local/share/opencode:ro \
+		-v ~/.codex:/home/ocage/.codex:ro \
+		-v ~/.claude:/home/ocage/.claude:ro \
+		-v ~/.config/ocage:/home/ocage/.config/ocage \
+		$(DOCKER_IMAGE)
+
+publish: create-github-release create-docker-release docker-run
