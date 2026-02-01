@@ -24,9 +24,9 @@ export interface ProviderToken {
 }
 
 export interface TokenStore {
-  anthropic?: ProviderToken;
-  openai?: ProviderToken;
-  kimi?: ProviderToken;
+  anthropic: ProviderToken[];
+  openai: ProviderToken[];
+  kimi: ProviderToken[];
 }
 
 interface OpenCodeAuth {
@@ -66,6 +66,26 @@ interface ClaudeAuth {
 }
 
 /**
+ * Load Claude Code credentials from macOS Keychain
+ */
+function loadClaudeKeychainCredentials(): ClaudeAuth | null {
+  if (process.platform !== "darwin") {
+    return null;
+  }
+
+  try {
+    const output = execSync(
+      'security find-generic-password -s "Claude Code-credentials" -w 2>/dev/null',
+      { encoding: "utf-8" }
+    ).trim();
+
+    return output ? (JSON.parse(output) as ClaudeAuth) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Log which auth sources are available on the filesystem (one-time startup log)
  */
 export function logAuthSources(): void {
@@ -73,7 +93,8 @@ export function logAuthSources(): void {
 
   if (existsSync(OPENCODE_AUTH)) sources.push("OpenCode");
   if (existsSync(CODEX_AUTH)) sources.push("Codex");
-  if (existsSync(CLAUDE_AUTH)) sources.push("Claude Code");
+  if (existsSync(CLAUDE_AUTH) || loadClaudeKeychainCredentials())
+    sources.push("Claude Code");
   if (existsSync(OCAGE_TOKENS)) sources.push("ocage tokens");
 
   if (sources.length > 0) {
@@ -85,75 +106,81 @@ export function logAuthSources(): void {
 
 /**
  * Load tokens from all sources: OpenCode, Codex, Claude Code, and our own store
- * Priority: OpenCode > Codex/Claude > manual tokens
+ * Returns all tokens found, sorted by priority (OpenCode > Codex/Claude > manual)
  */
 export function loadTokens(): TokenStore {
-  const store: TokenStore = {};
+  const store: TokenStore = {
+    anthropic: [],
+    openai: [],
+    kimi: [],
+  };
 
-  // Load from OpenCode auth.json (primary source)
+  // Load from OpenCode auth.json (highest priority)
   try {
     const openCodeAuth: OpenCodeAuth = JSON.parse(
       readFileSync(OPENCODE_AUTH, "utf-8")
     );
 
     if (openCodeAuth.anthropic?.access) {
-      store.anthropic = {
+      store.anthropic.push({
         type: "oauth",
         token: openCodeAuth.anthropic.access,
         expires: openCodeAuth.anthropic.expires,
         updatedAt: Date.now(),
-      };
+      });
     }
 
     if (openCodeAuth.openai?.access) {
-      store.openai = {
+      store.openai.push({
         type: "oauth",
         token: openCodeAuth.openai.access,
         expires: openCodeAuth.openai.expires,
         updatedAt: Date.now(),
         accountId: openCodeAuth.openai.accountId,
-      };
+      });
     }
   } catch {
     // OpenCode auth not available
   }
 
   // Load from Codex CLI (~/.codex/auth.json) as fallback for OpenAI
-  if (!store.openai) {
-    try {
-      const codexAuth: CodexAuth = JSON.parse(
-        readFileSync(CODEX_AUTH, "utf-8")
-      );
-      if (codexAuth.tokens?.access_token) {
-        store.openai = {
-          type: "oauth",
-          token: codexAuth.tokens.access_token,
-          updatedAt: Date.now(),
-          accountId: codexAuth.tokens.account_id,
-        };
-      }
-    } catch {
-      // Codex auth not available
+  try {
+    const codexAuth: CodexAuth = JSON.parse(readFileSync(CODEX_AUTH, "utf-8"));
+    if (codexAuth.tokens?.access_token) {
+      store.openai.push({
+        type: "oauth",
+        token: codexAuth.tokens.access_token,
+        updatedAt: Date.now(),
+        accountId: codexAuth.tokens.account_id,
+      });
     }
+  } catch {
+    // Codex auth not available
   }
 
-  // Load from Claude Code (~/.claude/.credentials.json) as fallback for Anthropic
-  if (!store.anthropic) {
-    try {
-      const claudeAuth: ClaudeAuth = JSON.parse(
-        readFileSync(CLAUDE_AUTH, "utf-8")
-      );
-      if (claudeAuth.claudeAiOauth?.accessToken) {
-        store.anthropic = {
-          type: "oauth",
-          token: claudeAuth.claudeAiOauth.accessToken,
-          expires: claudeAuth.claudeAiOauth.expiresAt,
-          updatedAt: Date.now(),
-        };
-      }
-    } catch {
-      // Claude Code auth not available
+  // Load from Claude Code as fallback for Anthropic
+  // Supports both file-based (Linux) and keychain-based (macOS) storage
+  try {
+    let claudeAuth: ClaudeAuth | null = null;
+
+    // Try file-based first (Linux)
+    if (existsSync(CLAUDE_AUTH)) {
+      claudeAuth = JSON.parse(readFileSync(CLAUDE_AUTH, "utf-8"));
+    } else {
+      // Try macOS Keychain
+      claudeAuth = loadClaudeKeychainCredentials();
     }
+
+    if (claudeAuth?.claudeAiOauth?.accessToken) {
+      store.anthropic.push({
+        type: "oauth",
+        token: claudeAuth.claudeAiOauth.accessToken,
+        expires: claudeAuth.claudeAiOauth.expiresAt,
+        updatedAt: Date.now(),
+      });
+    }
+  } catch {
+    // Claude Code auth not available
   }
 
   // Load our own tokens (browser cookies for Kimi)
@@ -162,7 +189,7 @@ export function loadTokens(): TokenStore {
 
     // Kimi cookie token (from browser)
     if (ocageTokens.kimi?.token) {
-      store.kimi = ocageTokens.kimi;
+      store.kimi.push(ocageTokens.kimi);
     }
   } catch {
     // Ocage tokens not available yet
@@ -200,9 +227,29 @@ export function saveToken(
  * Check if a token is valid (not expired)
  */
 export function isTokenValid(token: ProviderToken | undefined): boolean {
-  if (!token?.token) return false;
-  if (token.expires && token.expires < Date.now()) return false;
+  if (!token?.token) {
+    return false;
+  }
+
+  if (token.expires && token.expires < Date.now()) {
+    return false;
+  }
+
   return true;
+}
+
+/**
+ * Get the first valid token for a provider (highest priority)
+ */
+export function getFirstValidToken(
+  tokens: ProviderToken[]
+): ProviderToken | undefined {
+  for (const token of tokens) {
+    if (isTokenValid(token)) {
+      return token;
+    }
+  }
+  return undefined;
 }
 
 /**
@@ -214,18 +261,22 @@ export function getAuthStatus(): Record<
 > {
   const tokens = loadTokens();
 
+  const anthropicValid = getFirstValidToken(tokens.anthropic);
+  const openaiValid = getFirstValidToken(tokens.openai);
+  const kimiValid = getFirstValidToken(tokens.kimi);
+
   return {
     anthropic: {
-      authenticated: isTokenValid(tokens.anthropic),
-      type: tokens.anthropic?.type,
+      authenticated: !!anthropicValid,
+      type: anthropicValid?.type,
     },
     openai: {
-      authenticated: isTokenValid(tokens.openai),
-      type: tokens.openai?.type,
+      authenticated: !!openaiValid,
+      type: openaiValid?.type,
     },
     kimi: {
-      authenticated: isTokenValid(tokens.kimi),
-      type: tokens.kimi?.type,
+      authenticated: !!kimiValid,
+      type: kimiValid?.type,
     },
   };
 }

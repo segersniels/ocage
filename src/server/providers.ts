@@ -3,7 +3,7 @@
  * Fetches rate limit usage from provider APIs
  */
 
-import { isKimiInstalled, loadTokens } from "./tokens";
+import { isKimiInstalled, loadTokens, type ProviderToken } from "./tokens";
 
 interface AnthropicUsageWindow {
   utilization?: number;
@@ -103,6 +103,7 @@ async function fetchAnthropicUsage(token: string): Promise<ProviderUsage> {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     console.error(`[providers] Anthropic fetch failed: ${message}`);
+
     return {
       provider: "anthropic",
       authenticated: true,
@@ -120,7 +121,9 @@ function decodeKimiJWT(
 ): { deviceId?: string; sessionId?: string; trafficId?: string } | null {
   try {
     const parts = jwt.split(".");
-    if (parts.length !== 3) return null;
+    if (parts.length !== 3) {
+      return null;
+    }
 
     const payload = Buffer.from(parts[1], "base64url").toString();
     const data = JSON.parse(payload);
@@ -326,6 +329,7 @@ async function fetchOpenAIUsage(
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     console.error(`[providers] OpenAI fetch failed: ${message}`);
+
     return {
       provider: "openai",
       authenticated: true,
@@ -336,6 +340,27 @@ async function fetchOpenAIUsage(
 }
 
 /**
+ * Try fetching usage with multiple tokens, returning first successful result
+ */
+async function tryFetchWithFallback(
+  tokens: ProviderToken[],
+  fetcher: (token: ProviderToken) => Promise<ProviderUsage>
+): Promise<ProviderUsage | null> {
+  for (let i = 0; i < tokens.length; i++) {
+    const result = await fetcher(tokens[i]);
+    if (result.authenticated && !result.error) {
+      return result;
+    }
+    // Log only if there's another token to try
+    if (i < tokens.length - 1) {
+      console.log(`[providers] Token failed, trying next...`);
+    }
+  }
+
+  return null;
+}
+
+/**
  * Fetch usage for all configured providers
  * Only returns providers that have tokens (auto-detected) or could have tokens (Kimi with CLI installed)
  */
@@ -343,21 +368,65 @@ export async function fetchAllProviderUsage(): Promise<ProviderUsage[]> {
   const tokens = loadTokens();
   const results: ProviderUsage[] = [];
 
-  // Anthropic - only if token exists (auto-detected from OpenCode or Claude Code)
-  if (tokens.anthropic?.token) {
-    results.push(await fetchAnthropicUsage(tokens.anthropic.token));
+  // Anthropic - try all tokens in priority order
+  if (tokens.anthropic.length > 0) {
+    const result = await tryFetchWithFallback(tokens.anthropic, async (token) =>
+      fetchAnthropicUsage(token.token)
+    );
+    if (result) {
+      results.push(result);
+    } else {
+      // All tokens failed
+      results.push({
+        provider: "anthropic",
+        authenticated: false,
+        error: "All tokens expired or invalid",
+        updatedAt: new Date(),
+      });
+    }
   }
 
   // Kimi - include if token exists OR kimi CLI is installed (for manual cookie entry)
-  if (tokens.kimi?.token || isKimiInstalled()) {
-    results.push(await fetchKimiUsage(tokens.kimi?.token || ""));
+  if (tokens.kimi.length > 0 || isKimiInstalled()) {
+    if (tokens.kimi.length > 0) {
+      const result = await tryFetchWithFallback(tokens.kimi, async (token) =>
+        fetchKimiUsage(token.token)
+      );
+      if (result) {
+        results.push(result);
+      } else {
+        results.push({
+          provider: "kimi",
+          authenticated: false,
+          error: "All tokens expired or invalid",
+          updatedAt: new Date(),
+        });
+      }
+    } else {
+      // No token but CLI installed - show as not authenticated
+      results.push({
+        provider: "kimi",
+        authenticated: false,
+        updatedAt: new Date(),
+      });
+    }
   }
 
-  // OpenAI - only if token exists (auto-detected from OpenCode or Codex)
-  if (tokens.openai?.token) {
-    results.push(
-      await fetchOpenAIUsage(tokens.openai.token, tokens.openai.accountId)
+  // OpenAI - try all tokens in priority order
+  if (tokens.openai.length > 0) {
+    const result = await tryFetchWithFallback(tokens.openai, async (token) =>
+      fetchOpenAIUsage(token.token, token.accountId)
     );
+    if (result) {
+      results.push(result);
+    } else {
+      results.push({
+        provider: "openai",
+        authenticated: false,
+        error: "All tokens expired or invalid",
+        updatedAt: new Date(),
+      });
+    }
   }
 
   return results;
