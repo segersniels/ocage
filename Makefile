@@ -52,4 +52,4 @@ docker-run:
 		-v ~/.config/ocage:/home/ocage/.config/ocage \
 		$(DOCKER_IMAGE)
 
-publish: create-github-release create-docker-release docker-run
+publish: create-github-release create-docker-release
