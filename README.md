@@ -12,6 +12,12 @@ A real-time dashboard for monitoring OpenCode usage limits across providers.
 curl -fsSL https://raw.githubusercontent.com/segersniels/ocage/master/install.sh | bash
 ```
 
+Then run the binary:
+
+```bash
+ocage
+```
+
 <details>
 <summary>Build from source</summary>
 
@@ -62,12 +68,47 @@ docker run -d -p 3333:3333 \
   segersniels/ocage:latest
 ```
 
-### docker-compose
+### Environment Variables
+
+You can pass tokens directly via environment variables (highest priority):
+
+| Variable                 | Description                                                  |
+| ------------------------ | ------------------------------------------------------------ |
+| `ANTHROPIC_ACCESS_TOKEN` | Anthropic OAuth access token (bypasses keychain/file lookup) |
+
+Useful for Docker environments where keychain access is not available.
+
+### docker compose
 
 Alternatively, use the provided [`docker-compose.yml`](./docker-compose.yml):
 
 ```bash
-docker-compose up -d
+docker compose up -d
+```
+
+### macOS Limitations
+
+On macOS, OAuth tokens stored in the system keychain cannot be accessed from within Docker containers. This affects providers that use OAuth authentication (OpenCode, Codex). To work around this:
+
+1. Install and run ocage natively (`curl ... | bash && ocage`), or
+2. Pass your Anthropic token via the `ANTHROPIC_ACCESS_TOKEN` environment variable (highest priority), or
+3. Manually add tokens through the ocage UI (they will be stored in `~/.config/ocage` which is mounted into the container)
+
+**Getting your Anthropic token from macOS Keychain:**
+
+If you have Claude Code installed and authenticated, retrieve your token with:
+
+```bash
+security find-generic-password -s "Claude Code-credentials" -w | jq -r '.claudeAiOauth.accessToken'
+```
+
+Then run Docker with the token:
+
+```bash
+docker run -d -p 3333:3333 \
+  -e ANTHROPIC_ACCESS_TOKEN="$(security find-generic-password -s "Claude Code-credentials" -w | jq -r '.claudeAiOauth.accessToken')" \
+  -v ~/.config/ocage:/home/ocage/.config/ocage \
+  segersniels/ocage:latest
 ```
 
 ## License

@@ -115,7 +115,16 @@ export function loadTokens(): TokenStore {
     kimi: [],
   };
 
-  // Load from OpenCode auth.json (highest priority)
+  // Check for ANTHROPIC_ACCESS_TOKEN env var (highest priority, useful for Docker)
+  if (process.env.ANTHROPIC_ACCESS_TOKEN) {
+    store.anthropic.push({
+      type: "oauth",
+      token: process.env.ANTHROPIC_ACCESS_TOKEN,
+      updatedAt: Date.now(),
+    });
+  }
+
+  // Load from OpenCode auth.json
   try {
     const openCodeAuth: OpenCodeAuth = JSON.parse(
       readFileSync(OPENCODE_AUTH, "utf-8")
