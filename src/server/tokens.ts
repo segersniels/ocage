@@ -91,11 +91,21 @@ function loadClaudeKeychainCredentials(): ClaudeAuth | null {
 export function logAuthSources(): void {
   const sources: string[] = [];
 
-  if (existsSync(OPENCODE_AUTH)) sources.push("OpenCode");
-  if (existsSync(CODEX_AUTH)) sources.push("Codex");
-  if (existsSync(CLAUDE_AUTH) || loadClaudeKeychainCredentials())
+  if (existsSync(OPENCODE_AUTH)) {
+    sources.push("OpenCode");
+  }
+
+  if (existsSync(CODEX_AUTH)) {
+    sources.push("Codex");
+  }
+
+  if (existsSync(CLAUDE_AUTH) || loadClaudeKeychainCredentials()) {
     sources.push("Claude Code");
-  if (existsSync(OCAGE_TOKENS)) sources.push("ocage tokens");
+  }
+
+  if (existsSync(OCAGE_TOKENS)) {
+    sources.push("ocage tokens");
+  }
 
   if (sources.length > 0) {
     console.log(`[tokens] Detected auth sources: ${sources.join(", ")}`);
