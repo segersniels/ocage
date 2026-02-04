@@ -51,12 +51,12 @@ docker run -d -p 3333:3333 \
 
 Mount the directories containing your provider credentials:
 
-| Volume                    | Description                                                                  |
-| ------------------------- | ---------------------------------------------------------------------------- |
-| `~/.local/share/opencode` | OpenCode credentials                                                         |
-| `~/.codex`                | Codex credentials                                                            |
-| `~/.claude`               | Claude Code credentials                                                      |
-| `~/.config/ocage`         | ocage token store (for Kimi browser cookies and tokens added through the UI) |
+| Volume                    | Description                                  |
+| ------------------------- | -------------------------------------------- |
+| `~/.local/share/opencode` | OpenCode credentials                         |
+| `~/.codex`                | Codex credentials                            |
+| `~/.claude`               | Claude Code credentials                      |
+| `~/.config/ocage`         | ocage token store (for Kimi browser cookies) |
 
 Mount only the volumes for providers you use. For example, if you only use OpenCode and Claude Code:
 
@@ -91,8 +91,7 @@ docker compose up -d
 On macOS, OAuth tokens stored in the system keychain cannot be accessed from within Docker containers. This affects providers that use OAuth authentication (OpenCode, Codex). To work around this:
 
 1. Install and run ocage natively (`curl ... | bash && ocage`), or
-2. Pass your Anthropic token via the `ANTHROPIC_ACCESS_TOKEN` environment variable (highest priority), or
-3. Manually add tokens through the ocage UI (they will be stored in `~/.config/ocage` which is mounted into the container)
+2. Pass your Anthropic token via the `ANTHROPIC_ACCESS_TOKEN` environment variable (highest priority)
 
 **Getting your Anthropic token from macOS Keychain:**
 
