@@ -9,15 +9,29 @@ const config = getConfig();
 
 let cachedProviders: ProviderUsage[] = [];
 
+/** Track last logged state per provider to avoid log spam */
+const lastLoggedState: Map<string, string> = new Map();
+
 async function refreshProviders() {
   cachedProviders = await fetchAllProviderUsage();
 
-  // Log any errors
+  // Log state changes only (avoid spamming same error every 5s)
   for (const provider of cachedProviders) {
-    if (provider.error) {
-      console.error(`[server] ${provider.provider}: ${provider.error}`);
-    } else if (!provider.authenticated) {
-      console.warn(`[server] ${provider.provider}: not authenticated`);
+    const currentState =
+      provider.error ?? (provider.authenticated ? "ok" : "not_authenticated");
+    const lastState = lastLoggedState.get(provider.provider);
+
+    if (currentState !== lastState) {
+      lastLoggedState.set(provider.provider, currentState);
+
+      if (provider.error) {
+        console.error(`[server] ${provider.provider}: ${provider.error}`);
+      } else if (!provider.authenticated) {
+        console.warn(`[server] ${provider.provider}: not authenticated`);
+      } else if (lastState !== undefined) {
+        // Only log recovery if we previously had an issue
+        console.log(`[server] ${provider.provider}: connected`);
+      }
     }
   }
 }
