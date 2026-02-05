@@ -116,7 +116,7 @@ export function logAuthSources(): void {
 
 /**
  * Load tokens from all sources: OpenCode, Codex, Claude Code, and our own store
- * Returns all tokens found, sorted by priority (OpenCode > Codex/Claude > manual)
+ * Returns all tokens found, sorted by priority (ocage preferred > OpenCode > Codex/Claude > manual)
  */
 export function loadTokens(): TokenStore {
   const store: TokenStore = {
@@ -125,9 +125,54 @@ export function loadTokens(): TokenStore {
     kimi: [],
   };
 
+  const addToken = (
+    list: ProviderToken[],
+    token: ProviderToken,
+    preferFront = false
+  ): void => {
+    const signature = `${token.type}:${token.accountId ?? ""}:${token.token}`;
+    const exists = list.some(
+      (existing) =>
+        `${existing.type}:${existing.accountId ?? ""}:${existing.token}` ===
+        signature
+    );
+    if (exists) {
+      return;
+    }
+
+    if (preferFront) {
+      list.unshift(token);
+    } else {
+      list.push(token);
+    }
+  };
+
+  // Load our own tokens first (preferred token per provider)
+  try {
+    const ocageTokens = JSON.parse(readFileSync(OCAGE_TOKENS, "utf-8")) as {
+      anthropic?: ProviderToken;
+      openai?: ProviderToken;
+      kimi?: ProviderToken;
+    };
+
+    if (ocageTokens.anthropic?.token) {
+      addToken(store.anthropic, ocageTokens.anthropic, true);
+    }
+
+    if (ocageTokens.openai?.token) {
+      addToken(store.openai, ocageTokens.openai, true);
+    }
+
+    if (ocageTokens.kimi?.token) {
+      addToken(store.kimi, ocageTokens.kimi, true);
+    }
+  } catch {
+    // Ocage tokens not available yet
+  }
+
   // Check for ANTHROPIC_ACCESS_TOKEN env var (highest priority, useful for Docker)
   if (process.env.ANTHROPIC_ACCESS_TOKEN) {
-    store.anthropic.push({
+    addToken(store.anthropic, {
       type: "oauth",
       token: process.env.ANTHROPIC_ACCESS_TOKEN,
       updatedAt: Date.now(),
@@ -141,7 +186,7 @@ export function loadTokens(): TokenStore {
     );
 
     if (openCodeAuth.anthropic?.access) {
-      store.anthropic.push({
+      addToken(store.anthropic, {
         type: "oauth",
         token: openCodeAuth.anthropic.access,
         expires: openCodeAuth.anthropic.expires,
@@ -150,7 +195,7 @@ export function loadTokens(): TokenStore {
     }
 
     if (openCodeAuth.openai?.access) {
-      store.openai.push({
+      addToken(store.openai, {
         type: "oauth",
         token: openCodeAuth.openai.access,
         expires: openCodeAuth.openai.expires,
@@ -166,7 +211,7 @@ export function loadTokens(): TokenStore {
   try {
     const codexAuth: CodexAuth = JSON.parse(readFileSync(CODEX_AUTH, "utf-8"));
     if (codexAuth.tokens?.access_token) {
-      store.openai.push({
+      addToken(store.openai, {
         type: "oauth",
         token: codexAuth.tokens.access_token,
         updatedAt: Date.now(),
@@ -191,7 +236,7 @@ export function loadTokens(): TokenStore {
     }
 
     if (claudeAuth?.claudeAiOauth?.accessToken) {
-      store.anthropic.push({
+      addToken(store.anthropic, {
         type: "oauth",
         token: claudeAuth.claudeAiOauth.accessToken,
         expires: claudeAuth.claudeAiOauth.expiresAt,
@@ -200,18 +245,6 @@ export function loadTokens(): TokenStore {
     }
   } catch {
     // Claude Code auth not available
-  }
-
-  // Load our own tokens (browser cookies for Kimi)
-  try {
-    const ocageTokens = JSON.parse(readFileSync(OCAGE_TOKENS, "utf-8"));
-
-    // Kimi cookie token (from browser)
-    if (ocageTokens.kimi?.token) {
-      store.kimi.push(ocageTokens.kimi);
-    }
-  } catch {
-    // Ocage tokens not available yet
   }
 
   return store;

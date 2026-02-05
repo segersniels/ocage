@@ -3,7 +3,19 @@
  * Fetches rate limit usage from provider APIs
  */
 
-import { isKimiInstalled, loadTokens, type ProviderToken } from "./tokens";
+import { isKimiInstalled, loadTokens, saveToken } from "./tokens";
+import {
+  buildAllTokensFailedUsage,
+  buildDisabledUsage,
+  getProviderFailureState,
+  getTokensSignature,
+  logProviderError,
+  MAX_TOKEN_FAILURES,
+  tryFetchWithFallback,
+} from "./provider-refresh";
+import type { ProviderUsage, RateLimit } from "./provider-types";
+
+export type { ProviderUsage, RateLimit } from "./provider-types";
 
 interface AnthropicUsageWindow {
   utilization?: number;
@@ -37,19 +49,6 @@ interface KimiUsageResponse {
   usages: KimiUsage[];
 }
 
-export interface RateLimit {
-  usedPercent: number;
-  resetsAt?: Date;
-}
-
-export interface ProviderUsage {
-  provider: string;
-  authenticated: boolean;
-  error?: string;
-  fiveHourLimit?: RateLimit;
-  weeklyLimit?: RateLimit;
-  updatedAt: Date;
-}
 
 /**
  * Fetch Anthropic usage via OAuth API
@@ -102,7 +101,7 @@ async function fetchAnthropicUsage(token: string): Promise<ProviderUsage> {
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    console.error(`[providers] Anthropic fetch failed: ${message}`);
+    logProviderError("anthropic", message);
 
     return {
       provider: "anthropic",
@@ -232,7 +231,7 @@ async function fetchKimiUsage(token: string): Promise<ProviderUsage> {
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    console.error(`[providers] Kimi fetch failed: ${message}`);
+    logProviderError("kimi", message);
     if (
       message.includes("unauthenticated") ||
       message.includes("INVALID_AUTH")
@@ -328,7 +327,7 @@ async function fetchOpenAIUsage(
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    console.error(`[providers] OpenAI fetch failed: ${message}`);
+    logProviderError("openai", message);
 
     return {
       provider: "openai",
@@ -337,27 +336,6 @@ async function fetchOpenAIUsage(
       updatedAt: new Date(),
     };
   }
-}
-
-/**
- * Try fetching usage with multiple tokens, returning first successful result
- */
-async function tryFetchWithFallback(
-  tokens: ProviderToken[],
-  fetcher: (token: ProviderToken) => Promise<ProviderUsage>
-): Promise<ProviderUsage | null> {
-  for (let i = 0; i < tokens.length; i++) {
-    const result = await fetcher(tokens[i]);
-    if (result.authenticated && !result.error) {
-      return result;
-    }
-    // Log only if there's another token to try
-    if (i < tokens.length - 1) {
-      console.log(`[providers] Token failed, trying next...`);
-    }
-  }
-
-  return null;
 }
 
 /**
@@ -370,37 +348,91 @@ export async function fetchAllProviderUsage(): Promise<ProviderUsage[]> {
 
   // Anthropic - try all tokens in priority order
   if (tokens.anthropic.length > 0) {
-    const result = await tryFetchWithFallback(tokens.anthropic, async (token) =>
-      fetchAnthropicUsage(token.token)
-    );
-    if (result) {
-      results.push(result);
+    const tokensSignature = getTokensSignature(tokens.anthropic);
+    const state = getProviderFailureState("anthropic", tokensSignature);
+
+    if (state.disabled) {
+      results.push(buildDisabledUsage("anthropic", state.lastUsage));
     } else {
-      // All tokens failed
-      results.push({
-        provider: "anthropic",
-        authenticated: false,
-        error: "All tokens expired or invalid",
-        updatedAt: new Date(),
-      });
+      const fallback = await tryFetchWithFallback(
+        "anthropic",
+        tokens.anthropic,
+        async (token) => fetchAnthropicUsage(token.token)
+      );
+      if (fallback.result) {
+        state.tokenFailures = 0;
+        state.lastUsage = fallback.result;
+        results.push(fallback.result);
+
+        if (fallback.winnerToken && (fallback.winnerIndex ?? 0) > 0) {
+          saveToken("anthropic", {
+            ...fallback.winnerToken,
+            updatedAt: Date.now(),
+          });
+        }
+      } else {
+        if (fallback.hadTokenFailure && tokens.anthropic.length <= 1) {
+          state.tokenFailures += 1;
+          if (state.tokenFailures > MAX_TOKEN_FAILURES) {
+            state.disabled = true;
+            state.lastUsage = buildDisabledUsage(
+              "anthropic",
+              fallback.lastFailure
+            );
+            results.push(state.lastUsage);
+          }
+        }
+
+        if (!state.disabled) {
+          const failedUsage = buildAllTokensFailedUsage("anthropic");
+          state.lastUsage = failedUsage;
+          results.push(failedUsage);
+        }
+      }
     }
   }
 
   // Kimi - include if token exists OR kimi CLI is installed (for manual cookie entry)
   if (tokens.kimi.length > 0 || isKimiInstalled()) {
     if (tokens.kimi.length > 0) {
-      const result = await tryFetchWithFallback(tokens.kimi, async (token) =>
-        fetchKimiUsage(token.token)
-      );
-      if (result) {
-        results.push(result);
+      const tokensSignature = getTokensSignature(tokens.kimi);
+      const state = getProviderFailureState("kimi", tokensSignature);
+
+      if (state.disabled) {
+        results.push(buildDisabledUsage("kimi", state.lastUsage));
       } else {
-        results.push({
-          provider: "kimi",
-          authenticated: false,
-          error: "All tokens expired or invalid",
-          updatedAt: new Date(),
-        });
+        const fallback = await tryFetchWithFallback(
+          "kimi",
+          tokens.kimi,
+          async (token) => fetchKimiUsage(token.token)
+        );
+        if (fallback.result) {
+          state.tokenFailures = 0;
+          state.lastUsage = fallback.result;
+          results.push(fallback.result);
+
+          if (fallback.winnerToken && (fallback.winnerIndex ?? 0) > 0) {
+            saveToken("kimi", {
+              ...fallback.winnerToken,
+              updatedAt: Date.now(),
+            });
+          }
+        } else {
+          if (fallback.hadTokenFailure && tokens.kimi.length <= 1) {
+            state.tokenFailures += 1;
+            if (state.tokenFailures > MAX_TOKEN_FAILURES) {
+              state.disabled = true;
+              state.lastUsage = buildDisabledUsage("kimi", fallback.lastFailure);
+              results.push(state.lastUsage);
+            }
+          }
+
+          if (!state.disabled) {
+            const failedUsage = buildAllTokensFailedUsage("kimi");
+            state.lastUsage = failedUsage;
+            results.push(failedUsage);
+          }
+        }
       }
     } else {
       // No token but CLI installed - show as not authenticated
@@ -414,18 +446,47 @@ export async function fetchAllProviderUsage(): Promise<ProviderUsage[]> {
 
   // OpenAI - try all tokens in priority order
   if (tokens.openai.length > 0) {
-    const result = await tryFetchWithFallback(tokens.openai, async (token) =>
-      fetchOpenAIUsage(token.token, token.accountId)
-    );
-    if (result) {
-      results.push(result);
+    const tokensSignature = getTokensSignature(tokens.openai);
+    const state = getProviderFailureState("openai", tokensSignature);
+
+    if (state.disabled) {
+      results.push(buildDisabledUsage("openai", state.lastUsage));
     } else {
-      results.push({
-        provider: "openai",
-        authenticated: false,
-        error: "All tokens expired or invalid",
-        updatedAt: new Date(),
-      });
+      const fallback = await tryFetchWithFallback(
+        "openai",
+        tokens.openai,
+        async (token) => fetchOpenAIUsage(token.token, token.accountId)
+      );
+      if (fallback.result) {
+        state.tokenFailures = 0;
+        state.lastUsage = fallback.result;
+        results.push(fallback.result);
+
+        if (fallback.winnerToken && (fallback.winnerIndex ?? 0) > 0) {
+          saveToken("openai", {
+            ...fallback.winnerToken,
+            updatedAt: Date.now(),
+          });
+        }
+      } else {
+        if (fallback.hadTokenFailure && tokens.openai.length <= 1) {
+          state.tokenFailures += 1;
+          if (state.tokenFailures > MAX_TOKEN_FAILURES) {
+            state.disabled = true;
+            state.lastUsage = buildDisabledUsage(
+              "openai",
+              fallback.lastFailure
+            );
+            results.push(state.lastUsage);
+          }
+        }
+
+        if (!state.disabled) {
+          const failedUsage = buildAllTokensFailedUsage("openai");
+          state.lastUsage = failedUsage;
+          results.push(failedUsage);
+        }
+      }
     }
   }
 
